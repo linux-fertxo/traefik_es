@@ -1,0 +1,37 @@
+# Ejemplo de configuración para servicios externos a Docker.
+# Se puede crear un archivo por cada servicio, crear uno para todos los servicios o una combinación de ambos.
+# Hacerlo de forma individual ayuda a mantener un control más granular sobre cada servicio.
+
+http:
+
+#------------------------------------------- ROUTERS
+  routers:
+    frontpage-websecure-rtr:
+      entryPoints:
+        - "websecure"
+      rule: "Host(`ejemplo.com`)"            # La parte pública del dominio. No necesita autentificación.
+      tls: {}
+      service: frontpage-websecure-svc
+
+    webmin-websecure-rtr:                    # Acceso a Webmin (Administración de servidores via web).
+      entryPoints:
+        - "websecure"
+      rule: "Host(`webmin.ejemplo.com`)"  
+      middlewares:
+        - chain-authelia                     # Pasamos una cadena para proporcionar autentificación Authelia.
+      tls: {}
+      service: webmin-websecure-svc
+
+#------------------------------------------- SERVICIOS
+  services:
+    frontpage-websecure-svc:
+      loadBalancer:
+        servers:
+          - url: "https://IP_DEL_SERVIDOR"
+        passHostHeader: true
+
+    webmin-websecure-svc:
+      loadBalancer:
+        servers:
+          - url: "https://IP_DEL_SERVIDOR"
+        passHostHeader: true

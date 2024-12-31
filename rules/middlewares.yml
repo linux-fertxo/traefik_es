@@ -1,0 +1,89 @@
+http:
+  middlewares:
+
+    middlewares-basic-auth:                                           # Ejemplo de autentificación básica
+      basicAuth:
+        usersFile: "/ruta/archivo/seguro/.usuarios"                   # Asegurarse de montar el volumen en docker-compose.yml
+
+    middlewares-rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    middlewares-secure-headers:                                       # Encabezados de seguridad de uso general
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+        accessControlMaxAge: 100
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        # forceSTSHeader: true
+        customFrameOptionsValue: "allow-from https:ejemplo.com"       # Ajustar el dominio.
+        contentTypeNosniff: true
+        browserXssFilter: true
+        # sslForceHost: true                                            # Añade sslHost a todos los servicios
+        # sslHost: "ejemplo.com"
+        referrerPolicy: "same-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), vr=()"
+        customResponseHeaders:
+          X-Robots-Tag: "none,noarchive,nosnippet,notranslate,noimageindex,noindex,nofollow,"
+          server: ""
+
+#====================================================================== Ignorar este bloque hasta ver Nextcloud
+    # nextcloud-secure-headers:                                         # Los mismos encabezados de seguridad anteriores, pero cambiando X-Robots-Tag (requerido por Nextcloud)
+    #   headers:
+    #     accessControlAllowMethods:
+    #       - GET
+    #       - OPTIONS
+    #       - PUT
+    #     accessControlMaxAge: 100
+    #     hostsProxyHeaders:
+    #       - "X-Forwarded-Host"
+    #     stsSeconds: 63072000
+    #     stsIncludeSubdomains: true
+    #     stsPreload: true
+    #     # forceSTSHeader: true
+    #     customFrameOptionsValue: "allow-from https:ejemplo.com"       # Ajustar el dominio.
+    #     contentTypeNosniff: true
+    #     browserXssFilter: true
+    #     referrerPolicy: "same-origin"
+    #     permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), vr=()"
+    #     customResponseHeaders:
+    #       X-Robots-Tag: "noindex,nofollow"
+    #       X-Frame-Options: "sameorigin"
+    #       server: ""
+
+    # nextcloud-redirect:                                               # Reescribe las peticiones CardDAV y CalDAV para su uso en clientes externos
+    #   redirectRegex:                                                  # Ver: https://docs.nextcloud.com/server/14/admin_manual/issues/general_troubleshooting.html#service-discovery
+    #     permanent: true
+    #     regex: "https://(.*)/.well-known/(card|cal)dav"
+    #     replacement: "https://${1}/remote.php/dav/"
+
+#====================================================================== Ignorar este bloque hasta ver Authelia
+    # middlewares-authelia:                                             # Bloquea el acceso mediante autentificación con Authelia (ver en authelia)
+    #   forwardAuth:
+    #     address: http://authelia:9091/api/authz/forward-auth
+
+#====================================================================== Ignorar este bloque hasta ver Crowdsec
+      # middlewares-crowdsec-bouncer:
+      #   plugin:
+      #     crowdsec-bouncer:
+      #       enabled: true
+      #       logLevel: INFO
+      #       updateIntervalSeconds: 60
+      #       updateMaxFailure: 0
+      #       defaultDecisionSeconds: 60
+      #       httpTimeoutSeconds: 10
+      #       crowdsecMode: live
+      #       crowdsecLapiKeyFile: /etc/traefik/cs-private-key
+      #       crowdsecLapiHost: crowdsec:8080
+      #       crowdsecLapiScheme: http
+      #       forwardedHeadersCustomName: X-Custom-Header
+      #         clientTrustedIPs:
+      #           - "192.168.0.0/16"
+      #           - '100.64.0.0/10'

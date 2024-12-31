@@ -1,0 +1,28 @@
+http:
+  middlewares:
+
+    chain-basic-auth:
+      chain:
+        middlewares:
+          - middlewares-rate-limit
+          - middlewares-secure-headers
+          - middlewares-basic-auth              # Autenticación básica. Comentar una vez tengamos Authelia
+          # - middlewares-crowdsec-bouncer      # Ignorar esta línea hasta ver Crowdsec
+
+#================================================ Ignorar este bloque hasta ver Authelia
+    # chain-authelia:
+    #   chain:
+    #     middlewares:
+    #       - middlewares-rate-limit
+    #       - middlewares-secure-headers
+    #       - middlewares-authelia
+    #       # - middlewares-crowdsec-bouncer      # Ignorar esta línea hasta ver Crowdsec
+
+#================================================ Ignorar este bloque hasta ver Nextcloud
+    # chain-nextcloud:
+    #   chain:
+    #     middlewares:
+    #       - middlewares-rate-limit
+    #       - nextcloud-secure-headers
+    #       - nextcloud-redirect
+    #       # - middlewares-crowdsec-bouncer      # Ignorar esta línea hasta ver Crowdsec

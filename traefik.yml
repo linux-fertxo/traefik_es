@@ -1,0 +1,102 @@
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: true                                                  # Mandar estadísticas de uso a Traefik. Completamente voluntario.
+
+api:
+  dashboard: true                                                           # Habilita el panel de control.
+  debug: true                                                               # Comentar una vez veamos que todo funciona.
+
+entryPoints:
+  web:                                                                      # Puerto 80 (HTTP).
+    address: ":80"
+    http:
+      redirections:                                                         # Redirigimos todo el tráfico a través de HTTPS.
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:                                                                # Puerto 443 (HTTPS).
+    address: ":443"
+    http:
+      tls:
+        options: tls-opts@file                                              # Archivo dentro de rules/ con la configuración de las opciones TLS.
+        certResolver: dns-cloudflare                                        # Nombre del bloque que buscará después certificatesResolvers.
+        domains:
+          - main: ejemplo.com                                               # Ajustar el dominio.
+          - sans: 
+            - "*.ejemplo.com"                                               # Ajustar el dominio.
+    forwardedHeaders:
+      trustedIPs:
+        # BLOQUE DE IPs DE CLOUDFLARE (Si usamos Cloudflare)                [IPs de Cloudflare: https://www.cloudflare.com/ips/]
+        - "173.245.48.0/20"
+        - "103.21.244.0/22"
+        - "103.22.200.0/22"
+        - "103.31.4.0/22"
+        - "141.101.64.0/18"
+        - "108.162.192.0/18"
+        - "190.93.240.0/20"
+        - "188.114.96.0/20"
+        - "197.234.240.0/22"
+        - "198.41.128.0/17"
+        - "162.158.0.0/15"
+        - "104.16.0.0/13"
+        - "104.24.0.0/14"
+        - "172.64.0.0/13"
+        - "131.0.72.0/22"
+        - "127.0.0.1/32"
+        # BLOQUE DE IPs DE RANGO LOCAL
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+        - "172.16.0.0/12"
+
+serversTransport:
+  insecureSkipVerify: true                                                  # Deshabilita la verificación del certificado entre Traefik y el servidor interno. Necesario para ciertos servicios.
+
+log: 
+  filePath: /var/log/traefik.log
+  level: WARN                                                               # (Por defecto: ERROR) DEBUG, INFO, WARN, ERROR, FATAL, PANIC (de menor a mayor importancia)
+  format: json
+
+accessLog:
+  filePath: /var/log/access.log
+  format: json
+  bufferingSize: 100                                                        # Por defecto 100, se puede reducir por ejemplo para pasar a Crowdsec los datos más rápido. (Ver crowdsec)
+  filters:
+    statusCodes: 
+      - "100-800"
+
+providers:
+  docker:
+     endpoint: "tcp://socket-proxy:2375"                                    # Aquí apuntamos al socket creado por socket-proxy para mayor seguridad (ver socket-proxy).
+    #  endpoint: "unix:///var/run/docker.sock"                                # Descomentar aquí y comentar la anterior para revertir el proxy de socket.
+     exposedByDefault: false
+     network: proxy
+  file:
+    directory: /etc/traefik/rules                                           # Carga la configuración dinámica desde uno o más archivos toml o yaml de este directorio.
+    watch: true                                                             # Sólo funciona en los archivos de la carpeta, no es recursivo. Cada vez que soltemos un archivo dentro de la carpeta, Traefik lo tendrá en cuenta para la configuración.
+
+certificatesResolvers:
+  dns-cloudflare:
+    acme:
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory      # Servidor para probar si nos concedería el certificado (Staging server).
+      caServer: https://acme-v02.api.letsencrypt.org/directory              # Servidor real (Production server).
+      email: correo@ejemplo.com                                             # Correo con el que tenemos registrado el dominio.
+      storage: /etc/traefik/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        delayBeforeCheck: 60s                                               # Demora la comprobación de DNS para mitigar la carga del servidor DNS.
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
+
+#============================================================================ Ignorar este bloque hasta ver la parte de Crowdsec
+# experimental:
+#   plugins:
+#     cloudflarewarp:
+#       moduleName: 'github.com/BetterCorp/cloudflarewarp'
+#       version: 'v1.3.3'
+# # comprobar la versión más actualizada en https://plugins.traefik.io/plugins/62e97498e2bf06d4675b9443/real-ip-from-cloudflare-proxy-tunnel
+#     crowdsec-bouncer:
+#       moduleName: 'github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin'
+#       version: 'v1.3.5'
+# # comprobar la versión más actualizada en https://plugins.traefik.io/plugins/6335346ca4caa9ddeffda116/crowdsec-bouncer-traefik-plugin

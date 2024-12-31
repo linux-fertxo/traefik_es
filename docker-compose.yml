@@ -1,0 +1,50 @@
+#============================================================================= REDES
+networks:
+  proxy:                                                                      # Nombre de la red en la que expondremos los servicios exteriormente
+    name: proxy
+    external: true                                                            # Podemos definirla manualmente o junto con el servicio (descomentar para ello).
+    #------------------------------------------------------------------------- Ignorar este bloque hasta ver Crowdsec 
+    # ipam:
+    #   driver: default
+    #   config:
+    #     - subnet: "10.0.0.0/24"                                               # Ajustar el rango
+  socket_proxy:                                                               # Red del socket-proxy (ver aparte).
+    name: socket_proxy
+    external: true
+
+#============================================================================ SERVICIOS
+services:
+#---------------------------------------------------------------------------- Traefik 3 - Proxy inverso
+  traefik:
+    image: traefik:3.2.1                                                      # Es más fiable fijar una versión en concreto que usar la etiqueta latest.
+    container_name: traefik
+    security_opt:
+      - no-new-privileges:true
+    restart: always
+    networks:
+      socket_proxy: {}
+      proxy: {}                                                               # Si usamos Crowdsec, poner un # delante de {}
+        # ipv4_address: "10.0.0.10"                                             # Si usamos Crowdsec es interesante fijar la IP (ver Crowdsec). Ajustar la IP dentro del rango definido arriba.
+    ports:
+      - 80:80
+      - 443:443
+      # - 8083:8080                                                             # Acceso al tablero desde la red interna. Necesita descomentar api.insecure=true en traefik.yml
+    environment:
+      - TZ=$TZ                                                                # Listado de zonas: https://www.joda.org/joda-time/timezones.html
+      - CF_DNS_API_TOKEN=$CF_DNS_API_TOKEN                                    # Variable de entorno que apunta al token de Cloudflare que deberemos crear.
+    volumes:                                                                  # $DOCKERDIR es la variable de entorno con la ruta hasta las configuraciones de Docker.
+      - $DOCKERDIR/traefik/traefik.yml:/etc/traefik/traefik.yml:ro            # Configuración estática de Traefik
+      - $DOCKERDIR/traefik/rules:/etc/traefik/rules                           # Carpeta con la configuración dinámica de Traefik (middlewares, tls, aplicaciones externas...)
+      # - /var/run/docker.sock:/var/run/docker.sock:ro                          # Comentado para no exponer el socket real. Si se va a usar, descomentar también en traefik.yml
+      ## IMPORTANTE: Los siguientes archivos hay que crearlos a mano (touch). En el caso de acme además tiene que tener permisos 600.
+      - $DOCKERDIR/traefik/acme/acme.json:/etc/traefik/acme.json              # Este es el certificado creado por Cloudflare (o Let's Encrypt, da igual. Todos van a éste archivo) Para crear un nuevo certificado hay que borrar el archivo previamente para que genere uno nuevo
+      - $DOCKERDIR/traefik/logs/traefik.log:/var/log/traefik.log
+      - $DOCKERDIR/traefik/logs/access.log:/var/log/access.log
+      # - $DOCKERDIR/crowdsec/cs-private-key:/etc/traefik/cs-private-key        # Ignorar esta línea hasta ver la parte de Crowdsec
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-rtr.entrypoints=websecure"
+      - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME`)"   # Para acceder desde fuera es necesario crear una entrada en el registro DNS (Cloudflare en éste caso).
+      - "traefik.http.routers.traefik-rtr.service=api@internal"               # Acceso al API interno de Traefik.
+      - "traefik.http.routers.traefik-rtr.middlewares=chain-authelia@file"    # "chain-authelia" es una cadena definida en el "@file" middlewares-chains.yml del directorio rules.
