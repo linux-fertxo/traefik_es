@@ -1,6 +1,6 @@
 <h1>
   <p align="center" width="100%">
-    <img width="22%" src=".recursos/traefik.png">
+    <img width="22%" src=".recursos/img/traefik.png">
     </br>
     Træfik v3
   </p> 
